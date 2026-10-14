@@ -104,12 +104,6 @@ This project provides a **simulation of network routing and packet transmission*
 - Display routing tables for each router.
 - Explore concepts related to routing protocols such as OSPF and IS-IS.
 
-## 👩‍💻 Author
 
-**Sakshi Vaidya**
-
-GitHub: [Sakshi-Vaidya1](https://github.com/Sakshi-Vaidya1)
-
----
 
 ⭐ If you find this project interesting, consider giving the repository a star!
