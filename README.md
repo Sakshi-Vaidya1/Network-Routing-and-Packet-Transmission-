@@ -107,3 +107,9 @@ This project provides a **simulation of network routing and packet transmission*
 
 
 ⭐ If you find this project interesting, consider giving the repository a star!
+<img width="1920" height="1080" alt="Screenshot 2026-10-15 165520" src="https://github.com/user-attachments/assets/1f9eeddf-679f-4f4d-a9fb-45c14962555d" />
+
+<img width="1920" height="1020" alt="Screenshot 2026-10-15 165529" src="https://github.com/user-attachments/assets/28ef1c48-0947-46d7-8dde-02f1dbe84ae0" />
+
+<img width="1920" height="1020" alt="Screenshot 2026-10-15 165536" src="https://github.com/user-attachments/assets/9bc8d105-1415-469a-a66b-caca42ef7f4d" />
+
