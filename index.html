@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#09111f">
+  <title>RouteLab — Network Routing Simulator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09111f;
+      --panel: #101b2b;
+      --panel-raised: #142237;
+      --line: #23344a;
+      --muted: #8da1ba;
+      --text: #edf5ff;
+      --cyan: #59e1d2;
+      --blue: #70a7ff;
+      --lime: #c3f36b;
+      --orange: #ffb86b;
+      --red: #ff7b89;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 78% 4%, rgba(55, 111, 162, .18), transparent 34rem),
+        radial-gradient(ellipse at 7% 45%, rgba(41, 146, 140, .08), transparent 29rem),
+        var(--bg);
+    }
+
+    button, select, input { font: inherit; }
+    button { color: inherit; }
+
+    .app-shell { max-width: 1480px; margin: 0 auto; padding: 28px 36px 36px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 34px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(89,225,210,.3);
+      border-radius: 13px; color: var(--cyan); background: rgba(89,225,210,.09);
+    }
+    .brand-name { font-size: 15px; font-weight: 750; letter-spacing: -.025em; }
+    .brand-sub { margin-top: 2px; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .live-pill, .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px; color: var(--cyan); font-size: 11px;
+      font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    }
+    .live-pill { padding: 8px 11px; border: 1px solid var(--line); border-radius: 999px; letter-spacing: .06em; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 12px rgba(195,243,107,.8); }
+    .icon-button {
+      display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line);
+      border-radius: 11px; background: rgba(16,27,43,.76); color: var(--muted); cursor: pointer;
+    }
+
+    .hero { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 23px; }
+    .hero-copy { max-width: 720px; }
+    .hero h1 { margin: 10px 0 8px; font-size: clamp(34px, 4vw, 52px); line-height: 1.06; letter-spacing: -.055em; }
+    .hero h1 span { color: var(--cyan); }
+    .hero p { max-width: 650px; margin: 0; color: #a4b4c9; font-size: 14px; line-height: 1.7; }
+    .hero-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 12px 15px; border: 1px solid var(--line); border-radius: 13px; color: #b8c8dc; background: rgba(16,27,43,.7); font-size: 12px; }
+    .hero-chip strong { color: var(--text); font-weight: 650; }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: stretch; }
+    .card { border: 1px solid rgba(128,160,195,.14); border-radius: 17px; background: linear-gradient(145deg, rgba(18,31,49,.97), rgba(13,24,39,.97)); box-shadow: 0 18px 50px rgba(0,0,0,.16); }
+    .graph-card { min-width: 0; overflow: hidden; }
+    .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px 22px 15px; }
+    .section-title { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+    .section-caption { margin-top: 5px; color: var(--muted); font-size: 11px; }
+    .graph-heading-right { display: flex; align-items: center; gap: 8px; }
+    .graph-stat { padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; color: #a9bad0; font-size: 11px; white-space: nowrap; }
+    .graph-stat b { color: var(--text); font-weight: 700; }
+    .graph-wrap { position: relative; padding: 0 12px; }
+    #networkSvg { display: block; width: 100%; height: auto; min-height: 300px; overflow: visible; }
+    .graph-grid { opacity: .42; }
+    .edge { stroke: #31435b; stroke-width: 2; transition: stroke .25s, stroke-width .25s, opacity .25s; }
+    .edge.route { stroke: var(--cyan); stroke-width: 4; filter: drop-shadow(0 0 5px rgba(89,225,210,.32)); }
+    .edge.visited { stroke: #5c7690; stroke-width: 2.5; }
+    .edge-label-bg { fill: #18283c; stroke: #2b405a; stroke-width: 1; }
+    .edge-label { fill: #b5c6da; font-size: 11px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .node-halo { fill: none; stroke: transparent; stroke-width: 1; }
+    .node-circle { fill: #14243a; stroke: #58718e; stroke-width: 2; transition: fill .2s, stroke .2s, r .2s; }
+    .node.start .node-circle { fill: #123a3c; stroke: var(--cyan); }
+    .node.destination .node-circle { fill: #392c1e; stroke: var(--orange); }
+    .node.route-node .node-circle { fill: #123b3b; stroke: var(--cyan); stroke-width: 2.5; }
+    .node.explored .node-circle { fill: #1b2a3c; stroke: #94aac3; }
+    .node-label { fill: #eef6ff; font-size: 14px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+    .node-sub { fill: #92a7bf; font-size: 9px; font-weight: 650; letter-spacing: .06em; text-anchor: middle; }
+    .packet-dot { fill: var(--lime); stroke: #f5ffd9; stroke-width: 2; filter: drop-shadow(0 0 7px rgba(195,243,107,.8)); }
+    .graph-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 17px; padding: 9px 23px 19px; color: var(--muted); font-size: 10px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+    .legend-line { width: 19px; height: 2px; background: #465b73; }
+    .legend-line.active { height: 3px; background: var(--cyan); }
+    .legend-node { width: 9px; height: 9px; border: 2px solid var(--cyan); border-radius: 50%; }
+    .legend-node.target { border-color: var(--orange); }
+
+    .side-column { display: flex; flex-direction: column; gap: 16px; }
+    .control-card { padding: 19px; }
+    .control-card .section-title { margin-bottom: 4px; }
+    .control-card .section-caption { margin-bottom: 17px; }
+    .field-label { display: block; margin: 0 0 7px; color: #a6b8cd; font-size: 11px; font-weight: 650; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { margin-bottom: 13px; }
+    select, input {
+      width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid #2b3e56; border-radius: 9px;
+      outline: none; color: var(--text); background: #0c1726; font-size: 12px;
+    }
+    select:focus, input:focus { border-color: rgba(89,225,210,.75); box-shadow: 0 0 0 3px rgba(89,225,210,.09); }
+    select option { background: #0c1726; }
+    .button {
+      display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 41px; padding: 0 13px;
+      border: 1px solid transparent; border-radius: 10px; font-size: 12px; font-weight: 750; cursor: pointer;
+      transition: transform .15s, filter .15s, background .15s;
+    }
+    .button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .button:active { transform: translateY(0); }
+    .button:disabled { cursor: not-allowed; opacity: .45; transform: none; }
+    .button-primary { width: 100%; color: #07191b; background: var(--cyan); box-shadow: 0 6px 22px rgba(89,225,210,.14); }
+    .button-secondary { width: 100%; color: var(--text); border-color: #314760; background: #1a2a40; }
+    .button-small { min-height: 34px; padding: 0 10px; color: #b4c6db; border-color: #2b3e56; background: #142238; font-size: 11px; }
+    .button-row { display: flex; gap: 8px; margin-top: 10px; }
+    .button-row .button { flex: 1; }
+    .divider { height: 1px; margin: 17px 0; background: var(--line); }
+    .subhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+    .subhead strong { font-size: 12px; }
+    .text-button { padding: 0; border: 0; color: var(--cyan); background: none; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .edge-form { display: grid; grid-template-columns: 1fr 1fr 75px; gap: 7px; }
+    .edge-form select, .edge-form input { min-height: 37px; padding: 0 8px; font-size: 11px; }
+    .add-edge-button { width: 100%; margin-top: 8px; }
+    .error-message { min-height: 16px; margin-top: 8px; color: var(--red); font-size: 11px; line-height: 1.4; }
+
+    .result-card { padding: 18px 19px; }
+    .result-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+    .result-placeholder { margin: 13px 0 2px; color: #7f93ac; font-size: 12px; line-height: 1.6; }
+    .result-content[hidden], .result-placeholder[hidden] { display: none; }
+    .result-label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .cost-number { margin-top: 5px; font-size: 31px; font-weight: 800; letter-spacing: -.05em; }
+    .cost-number small { margin-left: 5px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0; }
+    .status-badge { padding: 6px 8px; border: 1px solid rgba(89,225,210,.2); border-radius: 7px; color: var(--cyan); background: rgba(89,225,210,.07); font-size: 9px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
+    .route-line { margin: 12px 0 15px; padding: 10px; border: 1px solid #283c52; border-radius: 9px; color: #e4f1ff; background: rgba(8,17,29,.45); font-size: 12px; font-weight: 700; line-height: 1.6; overflow-wrap: anywhere; }
+    .result-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+    .result-meta b { color: #d8e6f5; }
+    .transmit-button { width: 100%; margin-top: 15px; color: #162009; background: var(--lime); }
+    .transmit-button:disabled { color: #859477; background: #293324; }
+    .delivery-message { min-height: 15px; margin-top: 9px; color: var(--lime); font-size: 10px; text-align: center; }
+
+    .bottom-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(270px, 1fr); gap: 18px; margin-top: 18px; }
+    .bottom-card { min-height: 160px; padding: 17px 19px; }
+    .bottom-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+    .bottom-title-row h2 { margin: 0; font-size: 12px; }
+    .mini-tag { color: var(--muted); font-size: 10px; }
+    .timeline { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 5px 0 8px; }
+    .timeline-empty { color: var(--muted); font-size: 11px; }
+    .timeline-step { display: flex; align-items: center; flex: 0 0 auto; }
+    .step-node { display: grid; place-items: center; width: 33px; height: 33px; border: 1px solid #314760; border-radius: 50%; color: #b8cadf; background: #142238; font-size: 11px; font-weight: 750; }
+    .step-node.route-step { border-color: rgba(89,225,210,.6); color: var(--cyan); background: rgba(89,225,210,.1); }
+    .step-info { margin: 0 8px; white-space: nowrap; }
+    .step-info strong { display: block; font-size: 10px; }
+    .step-info span { color: var(--muted); font-size: 9px; }
+    .step-connector { width: clamp(14px, 3vw, 43px); height: 1px; background: #34485f; }
+    .algorithm-copy { color: #a3b4c9; font-size: 11px; line-height: 1.65; }
+    .algorithm-copy strong { color: #e4effc; font-weight: 650; }
+    .complexity { display: inline-flex; gap: 10px; margin-top: 11px; }
+    .complexity span { padding: 6px 8px; border: 1px solid #283c52; border-radius: 7px; color: var(--cyan); background: rgba(8,17,29,.38); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; }
+    .footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 21px; color: #62758c; font-size: 10px; }
+    .footer span:last-child { color: #7d91a9; }
+
+    @media (max-width: 980px) {
+      .app-shell { padding: 22px 20px 28px; }
+      .workspace { grid-template-columns: minmax(0, 1fr) 310px; gap: 13px; }
+      .bottom-grid { gap: 13px; }
+      .graph-heading-right .graph-stat:last-child { display: none; }
+    }
+    @media (max-width: 760px) {
+      .app-shell { padding: 16px 14px 24px; }
+      .topbar { margin-bottom: 24px; }
+      .hero { align-items: start; flex-direction: column; margin-bottom: 18px; }
+      .hero-chip { display: none; }
+      .workspace { grid-template-columns: 1fr; }
+      .side-column { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+      .result-card, .control-card { height: 100%; }
+      .bottom-grid { grid-template-columns: 1fr; }
+      .graph-heading-right .graph-stat:last-child { display: block; }
+    }
+    @media (max-width: 520px) {
+      .side-column { grid-template-columns: 1fr; }
+      .result-card { min-height: 215px; }
+      .graph-heading-right .graph-stat { display: none; }
+      .card-heading { padding: 17px 16px 12px; }
+      .graph-wrap { padding: 0 3px; }
+      #networkSvg { min-height: 240px; }
+      .graph-legend { padding: 7px 17px 16px; gap: 12px; }
+      .footer { align-items: start; flex-direction: column; }
+      .live-pill { font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+            <circle cx="5" cy="6" r="2.3" stroke="currentColor" stroke-width="1.7"/>
+            <circle cx="18.5" cy="5" r="2.3" stroke="currentColor" stroke-width="1.7"/>
+            <circle cx="12" cy="18" r="2.3" stroke="currentColor" stroke-width="1.7"/>
+            <path d="m7.2 5.8 9-.6M6.2 8l4.6 8m5.2-9-3.2 8.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div><div class="brand-name">RouteLab</div><div class="brand-sub">Network simulator</div></div>
+      </div>
+      <div class="topbar-right">
+        <div class="live-pill"><span class="live-dot"></span> Interactive demo</div>
+        <button class="icon-button" id="resetButton" type="button" aria-label="Reset demo network" title="Reset demo network">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20 7v5h-5M4.9 9a7.5 7.5 0 0 1 12.7-2L20 12M4 17v-5h5m10.1 3a7.5 7.5 0 0 1-12.7 2L4 12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="live-dot"></span> Shortest path · packet delivery</div>
+        <h1>Find the smartest<br><span>route through the network.</span></h1>
+        <p>See Dijkstra’s algorithm in action. Build a router network, find its lowest-cost path, and watch a packet make the journey.</p>
+      </div>
+      <div class="hero-chip">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" stroke="#59e1d2" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="4" stroke="#59e1d2" stroke-width="1.5"/>
+        </svg>
+        <span><strong>Greedy algorithm</strong> · non-negative link costs</span>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="Network routing simulator">
+      <section class="card graph-card" aria-labelledby="graphTitle">
+        <div class="card-heading">
+          <div>
+            <h2 class="section-title" id="graphTitle">Network topology</h2>
+            <div class="section-caption">Each link shows its routing cost</div>
+          </div>
+          <div class="graph-heading-right">
+            <div class="graph-stat"><b id="routerCount">7</b> routers</div>
+            <div class="graph-stat"><b id="connectionCount">9</b> connections</div>
+          </div>
+        </div>
+        <div class="graph-wrap">
+          <svg id="networkSvg" viewBox="0 0 720 470" role="img" aria-label="Network graph showing routers and connection costs">
+            <defs>
+              <pattern id="dotGrid" width="25" height="25" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r="1" fill="#29405b"/>
+              </pattern>
+            </defs>
+            <rect class="graph-grid" x="0" y="0" width="720" height="470" fill="url(#dotGrid)"/>
+            <g id="edgeLayer"></g>
+            <g id="nodeLayer"></g>
+            <circle id="packetDot" class="packet-dot" r="7" visibility="hidden"/>
+          </svg>
+        </div>
+        <div class="graph-legend">
+          <span class="legend-item"><span class="legend-line"></span> Network link</span>
+          <span class="legend-item"><span class="legend-line active"></span> Shortest route</span>
+          <span class="legend-item"><span class="legend-node"></span> Source</span>
+          <span class="legend-item"><span class="legend-node target"></span> Destination</span>
+        </div>
+      </section>
+
+      <aside class="side-column">
+        <section class="card control-card" aria-labelledby="controlsTitle">
+          <h2 class="section-title" id="controlsTitle">Route controls</h2>
+          <div class="section-caption">Choose where your packet needs to go.</div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label" for="sourceSelect">Source router</label>
+              <select id="sourceSelect"></select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="destinationSelect">Destination</label>
+              <select id="destinationSelect"></select>
+            </div>
+          </div>
+          <button class="button button-primary" id="findRouteButton" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Find shortest route
+          </button>
+          <div class="divider"></div>
+          <div class="subhead">
+            <strong>Network builder</strong>
+            <button class="text-button" id="addRouterButton" type="button">+ Add router</button>
+          </div>
+          <div class="edge-form">
+            <div><label class="field-label" for="edgeFrom">From</label><select id="edgeFrom"></select></div>
+            <div><label class="field-label" for="edgeTo">To</label><select id="edgeTo"></select></div>
+            <div><label class="field-label" for="edgeCost">Cost</label><input id="edgeCost" type="number" min="0" step="1" value="3" inputmode="numeric" aria-label="Connection cost"></div>
+          </div>
+          <button class="button button-secondary add-edge-button" id="addEdgeButton" type="button">Add / update connection</button>
+          <div class="error-message" id="formMessage" role="status" aria-live="polite"></div>
+          <div class="button-row">
+            <button class="button button-small" id="sampleButton" type="button">Load sample</button>
+            <button class="button button-small" id="addRouterSecondary" type="button">Add router +</button>
+          </div>
+        </section>
+
+        <section class="card result-card" aria-labelledby="resultTitle">
+          <div class="result-top">
+            <h2 class="section-title" id="resultTitle">Routing result</h2>
+            <span class="status-badge" id="resultBadge">Ready</span>
+          </div>
+          <div class="result-placeholder" id="resultPlaceholder">Choose a source and destination, then run Dijkstra to reveal the best route.</div>
+          <div class="result-content" id="resultContent" hidden>
+            <div class="result-label">Minimum routing cost</div>
+            <div class="cost-number"><span id="resultCost">0</span><small>cost units</small></div>
+            <div class="route-line" id="routeText"></div>
+            <div class="result-meta"><span>Hops <b id="hopCount">0</b></span><span>Routers explored <b id="exploredCount">0</b></span></div>
+          </div>
+          <button class="button transmit-button" id="transmitButton" type="button" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Transmit packet
+          </button>
+          <div class="delivery-message" id="deliveryMessage" aria-live="polite"></div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="bottom-grid">
+      <section class="card bottom-card" aria-labelledby="traceTitle">
+        <div class="bottom-title-row">
+          <h2 id="traceTitle">Algorithm trace</h2>
+          <span class="mini-tag" id="traceCaption">Waiting for a route</span>
+        </div>
+        <div class="timeline" id="timeline"><div class="timeline-empty">Run the algorithm to see the routers explored in order.</div></div>
+      </section>
+      <section class="card bottom-card" aria-labelledby="aboutTitle">
+        <div class="bottom-title-row"><h2 id="aboutTitle">Under the hood</h2><span class="mini-tag">Dijkstra’s algorithm</span></div>
+        <div class="algorithm-copy">Repeatedly visits the <strong>closest unvisited router</strong>, then relaxes the costs of its neighbors. With a priority queue, the route is found efficiently across weighted links.</div>
+        <div class="complexity"><span>Time&nbsp; O((V + E) log V)</span><span>Space&nbsp; O(V + E)</span></div>
+      </section>
+    </section>
+
+    <footer class="footer">
+      <span>ROUTELAB <span aria-hidden="true">·</span> NETWORK ROUTING &amp; PACKET TRANSMISSION</span>
+      <span>Every connection is bidirectional · Costs must be non-negative</span>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const svgNS = "http://www.w3.org/2000/svg";
+      const sampleEdges = [
+        ["A", "B", 4], ["A", "C", 2], ["B", "C", 1], ["B", "D", 5],
+        ["C", "D", 8], ["C", "E", 10], ["D", "E", 2], ["D", "F", 6], ["E", "F", 3]
+      ];
+      let routers = [];
+      let edges = [];
+      let lastResult = null;
+      let animationToken = 0;
+
+      const byId = (id) => document.getElementById(id);
+      const sourceSelect = byId("sourceSelect");
+      const destinationSelect = byId("destinationSelect");
+      const edgeFrom = byId("edgeFrom");
+      const edgeTo = byId("edgeTo");
+      const svg = byId("networkSvg");
+      const edgeLayer = byId("edgeLayer");
+      const nodeLayer = byId("nodeLayer");
+
+      function makeSvgElement(name, attributes) {
+        const element = document.createElementNS(svgNS, name);
+        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+        return element;
+      }
+
+      function edgeKey(a, b) {
+        return a < b ? `${a}-${b}` : `${b}-${a}`;
+      }
+
+      class MinPriorityQueue {
+        constructor() {
+          this.items = [];
+        }
+
+        push(item) {
+          let index = this.items.length;
+          this.items.push(item);
+          while (index > 0) {
+            const parent = Math.floor((index - 1) / 2);
+            if (this.items[parent].distance <= item.distance) break;
+            this.items[index] = this.items[parent];
+            index = parent;
+          }
+          this.items[index] = item;
+        }
+
+        pop() {
+          if (this.items.length === 0) return null;
+          const minimum = this.items[0];
+          const last = this.items.pop();
+          if (this.items.length > 0) {
+            let index = 0;
+            while (true) {
+              const left = index * 2 + 1;
+              const right = left + 1;
+              if (left >= this.items.length) break;
+              const child = right < this.items.length && this.items[right].distance < this.items[left].distance
+                ? right
+                : left;
+              if (last.distance <= this.items[child].distance) break;
+              this.items[index] = this.items[child];
+              index = child;
+            }
+            this.items[index] = last;
+          }
+          return minimum;
+        }
+      }
+
+      function positionsFor(count) {
+        const centerX = 360;
+        const centerY = 235;
+        const radius = count <= 3 ? 110 : count <= 8 ? 174 : count <= 14 ? 187 : 196;
+        const startAngle = -Math.PI / 2;
+        return routers.map((router, index) => ({
+          router,
+          x: centerX + Math.cos(startAngle + 2 * Math.PI * index / count) * radius,
+          y: centerY + Math.sin(startAngle + 2 * Math.PI * index / count) * radius
+        }));
+      }
+
+      function renderGraph(explored = [], route = []) {
+        edgeLayer.replaceChildren();
+        nodeLayer.replaceChildren();
+        const positions = positionsFor(routers.length);
+        const positionByName = new Map(positions.map((position) => [position.router, position]));
+        const exploredEdges = new Set();
+        for (let index = 1; index < explored.length; index++) {
+          exploredEdges.add(edgeKey(explored[index - 1], explored[index]));
+        }
+        const routeEdges = new Set();
+        for (let index = 1; index < route.length; index++) routeEdges.add(edgeKey(route[index - 1], route[index]));
+
+        for (const edge of edges) {
+          const from = positionByName.get(edge.a);
+          const to = positionByName.get(edge.b);
+          if (!from || !to) continue;
+          const key = edgeKey(edge.a, edge.b);
+          const line = makeSvgElement("line", {
+            x1: from.x, y1: from.y, x2: to.x, y2: to.y,
+            class: `edge${exploredEdges.has(key) ? " visited" : ""}${routeEdges.has(key) ? " route" : ""}`
+          });
+          edgeLayer.appendChild(line);
+          const midX = (from.x + to.x) / 2;
+          const midY = (from.y + to.y) / 2;
+          const labelBg = makeSvgElement("rect", { x: midX - 15, y: midY - 10, width: 30, height: 20, rx: 7, class: "edge-label-bg" });
+          const label = makeSvgElement("text", { x: midX, y: midY, class: "edge-label" });
+          label.textContent = String(edge.cost);
+          edgeLayer.append(labelBg, label);
+        }
+
+        for (const position of positions) {
+          const router = position.router;
+          const group = makeSvgElement("g", {
+            class: `node${lastResult && router === lastResult.source ? " start" : ""}${lastResult && router === lastResult.destination ? " destination" : ""}${route.includes(router) ? " route-node" : ""}${explored.includes(router) ? " explored" : ""}`
+          });
+          group.appendChild(makeSvgElement("circle", { cx: position.x, cy: position.y, r: 26, class: "node-halo" }));
+          group.appendChild(makeSvgElement("circle", { cx: position.x, cy: position.y, r: 20, class: "node-circle" }));
+          const label = makeSvgElement("text", { x: position.x, y: position.y, class: "node-label" });
+          label.textContent = router;
+          group.appendChild(label);
+          const caption = makeSvgElement("text", { x: position.x, y: position.y + 35, class: "node-sub" });
+          caption.textContent = "ROUTER";
+          group.appendChild(caption);
+          nodeLayer.appendChild(group);
+        }
+      }
+
+      function refreshSelect(select, selectedValue) {
+        const previous = selectedValue || select.value;
+        select.replaceChildren();
+        for (const router of routers) {
+          const option = document.createElement("option");
+          option.value = router;
+          option.textContent = `Router ${router}`;
+          select.appendChild(option);
+        }
+        if (routers.includes(previous)) select.value = previous;
+      }
+
+      function refreshControls() {
+        const previousSource = sourceSelect.value || "A";
+        const previousDestination = destinationSelect.value || "F";
+        const previousEdgeFrom = edgeFrom.value || "A";
+        const previousEdgeTo = edgeTo.value || "B";
+        refreshSelect(sourceSelect, previousSource);
+        refreshSelect(destinationSelect, previousDestination);
+        refreshSelect(edgeFrom, previousEdgeFrom);
+        refreshSelect(edgeTo, previousEdgeTo);
+        byId("routerCount").textContent = String(routers.length);
+        byId("connectionCount").textContent = String(edges.length);
+        byId("addRouterButton").disabled = routers.length >= 26;
+        byId("addRouterSecondary").disabled = routers.length >= 26;
+        byId("addRouterButton").style.opacity = routers.length >= 26 ? ".45" : "";
+        byId("addRouterSecondary").style.opacity = routers.length >= 26 ? ".45" : "";
+      }
+
+      function clearResult() {
+        animationToken++;
+        lastResult = null;
+        byId("packetDot").setAttribute("visibility", "hidden");
+        byId("resultPlaceholder").hidden = false;
+        byId("resultContent").hidden = true;
+        byId("resultBadge").textContent = "Ready";
+        byId("transmitButton").disabled = true;
+        byId("deliveryMessage").textContent = "";
+        byId("timeline").innerHTML = '<div class="timeline-empty">Run the algorithm to see the routers explored in order.</div>';
+        byId("traceCaption").textContent = "Waiting for a route";
+        renderGraph();
+      }
+
+      function runDijkstra(source, destination) {
+        const distances = new Map(routers.map((router) => [router, Infinity]));
+        const previous = new Map(routers.map((router) => [router, null]));
+        const visited = new Set();
+        const exploration = [];
+        const adjacency = new Map(routers.map((router) => [router, []]));
+        const queue = new MinPriorityQueue();
+        for (const edge of edges) {
+          adjacency.get(edge.a).push({ router: edge.b, cost: edge.cost });
+          adjacency.get(edge.b).push({ router: edge.a, cost: edge.cost });
+        }
+        distances.set(source, 0);
+        queue.push({ router: source, distance: 0 });
+
+        while (queue.items.length > 0) {
+          const next = queue.pop();
+          if (next === null || visited.has(next.router) || next.distance !== distances.get(next.router)) continue;
+          const current = next.router;
+          visited.add(current);
+          exploration.push(current);
+          if (current === destination) break;
+
+          for (const { router: neighbor, cost } of adjacency.get(current)) {
+            if (visited.has(neighbor)) continue;
+            const alternative = distances.get(current) + cost;
+            if (alternative < distances.get(neighbor)) {
+              distances.set(neighbor, alternative);
+              previous.set(neighbor, current);
+              queue.push({ router: neighbor, distance: alternative });
+            }
+          }
+        }
+
+        const cost = distances.get(destination);
+        if (!Number.isFinite(cost)) return { reachable: false, source, destination, exploration };
+        const route = [];
+        for (let current = destination; current !== null; current = previous.get(current)) route.push(current);
+        route.reverse();
+        return { reachable: true, source, destination, cost, route, exploration };
+      }
+
+      function renderTrace(result) {
+        const timeline = byId("timeline");
+        timeline.replaceChildren();
+        for (const [index, router] of result.exploration.entries()) {
+          const step = document.createElement("div");
+          step.className = "timeline-step";
+          const circle = document.createElement("div");
+          circle.className = `step-node${result.route.includes(router) ? " route-step" : ""}`;
+          circle.textContent = router;
+          const info = document.createElement("div");
+          info.className = "step-info";
+          const heading = document.createElement("strong");
+          heading.textContent = `Visit ${router}`;
+          const detail = document.createElement("span");
+          const distance = result.reachable
+            ? result.route.slice(0, result.route.indexOf(router) + 1).reduce((total, item, itemIndex, items) => {
+                if (itemIndex === 0) return 0;
+                const prior = items[itemIndex - 1];
+                const link = edges.find((edge) => edgeKey(edge.a, edge.b) === edgeKey(prior, item));
+                return total + (link ? link.cost : 0);
+              }, 0)
+            : "—";
+          detail.textContent = result.route.includes(router) ? `Cost from source: ${distance}` : "Explored";
+          info.append(heading, detail);
+          step.append(circle, info);
+          timeline.appendChild(step);
+          if (index < result.exploration.length - 1) {
+            const connector = document.createElement("div");
+            connector.className = "step-connector";
+            timeline.appendChild(connector);
+          }
+        }
+        byId("traceCaption").textContent = `${result.exploration.length} router${result.exploration.length === 1 ? "" : "s"} settled`;
+      }
+
+      function showResult(result) {
+        lastResult = result;
+        byId("resultPlaceholder").hidden = true;
+        byId("resultContent").hidden = false;
+        byId("deliveryMessage").textContent = "";
+        byId("packetDot").setAttribute("visibility", "hidden");
+        if (!result.reachable) {
+          byId("resultBadge").textContent = "No route";
+          byId("resultCost").textContent = "—";
+          byId("routeText").textContent = `No route available from ${result.source} to ${result.destination}.`;
+          byId("hopCount").textContent = "—";
+          byId("exploredCount").textContent = String(result.exploration.length);
+          byId("transmitButton").disabled = true;
+          byId("timeline").innerHTML = '<div class="timeline-empty">The destination cannot be reached from this source.</div>';
+          byId("traceCaption").textContent = "Destination unreachable";
+          renderGraph(result.exploration);
+          return;
+        }
+        byId("resultBadge").textContent = "Route found";
+        byId("resultCost").textContent = String(result.cost);
+        byId("routeText").textContent = result.route.join("  →  ");
+        byId("hopCount").textContent = String(result.route.length - 1);
+        byId("exploredCount").textContent = String(result.exploration.length);
+        byId("transmitButton").disabled = false;
+        renderTrace(result);
+        renderGraph(result.exploration, result.route);
+      }
+
+      function transmitPacket() {
+        if (!lastResult || !lastResult.reachable) return;
+        const token = ++animationToken;
+        const result = lastResult;
+        const positions = new Map(positionsFor(routers.length).map((position) => [position.router, position]));
+        const packet = byId("packetDot");
+        const button = byId("transmitButton");
+        const message = byId("deliveryMessage");
+        button.disabled = true;
+        byId("resultBadge").textContent = "Transmitting";
+        message.textContent = `Packet dispatched from router ${result.source}…`;
+        const route = result.route;
+        const stepDuration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 120 : 520;
+        let index = 0;
+
+        function moveToNext() {
+          if (token !== animationToken) return;
+          const position = positions.get(route[index]);
+          packet.setAttribute("cx", position.x);
+          packet.setAttribute("cy", position.y);
+          packet.setAttribute("visibility", "visible");
+          if (index === route.length - 1) {
+            byId("resultBadge").textContent = "Delivered";
+            message.textContent = `Packet delivered successfully to router ${result.destination}.`;
+            button.disabled = false;
+            return;
+          }
+          index++;
+          message.textContent = `Packet reached router ${route[index - 1]} · forwarding to ${route[index]}…`;
+          window.setTimeout(moveToNext, stepDuration);
+        }
+        moveToNext();
+      }
+
+      function addRouter() {
+        if (routers.length >= 26) return;
+        const next = String.fromCharCode(65 + routers.length);
+        routers.push(next);
+        byId("formMessage").textContent = `Router ${next} added. Connect it to the network to include it in a route.`;
+        refreshControls();
+        clearResult();
+      }
+
+      function loadSample() {
+        animationToken++;
+        routers = ["A", "B", "C", "D", "E", "F", "G"];
+        edges = sampleEdges.map(([a, b, cost]) => ({ a, b, cost }));
+        sourceSelect.value = "A";
+        destinationSelect.value = "F";
+        byId("formMessage").textContent = "";
+        byId("edgeCost").value = "3";
+        refreshControls();
+        sourceSelect.value = "A";
+        destinationSelect.value = "F";
+        edgeFrom.value = "A";
+        edgeTo.value = "B";
+        clearResult();
+      }
+
+      byId("findRouteButton").addEventListener("click", () => {
+        const source = sourceSelect.value;
+        const destination = destinationSelect.value;
+        if (!source || !destination) return;
+        byId("formMessage").textContent = "";
+        showResult(runDijkstra(source, destination));
+      });
+
+      byId("addEdgeButton").addEventListener("click", () => {
+        const a = edgeFrom.value;
+        const b = edgeTo.value;
+        const rawCost = byId("edgeCost").value;
+        const cost = Number(rawCost);
+        const message = byId("formMessage");
+        if (!a || !b || a === b) {
+          message.textContent = "Choose two different routers for a connection.";
+          return;
+        }
+        if (rawCost.trim() === "" || !Number.isSafeInteger(cost) || cost < 0) {
+          message.textContent = "Enter a whole-number cost of zero or more.";
+          return;
+        }
+        const existing = edges.find((edge) => edgeKey(edge.a, edge.b) === edgeKey(a, b));
+        if (existing) {
+          existing.cost = cost;
+          message.textContent = `Connection ${a}–${b} updated to cost ${cost}.`;
+        } else {
+          edges.push({ a, b, cost });
+          message.textContent = `Connection ${a}–${b} added with cost ${cost}.`;
+        }
+        refreshControls();
+        clearResult();
+      });
+
+      byId("addRouterButton").addEventListener("click", addRouter);
+      byId("addRouterSecondary").addEventListener("click", addRouter);
+      byId("sampleButton").addEventListener("click", loadSample);
+      byId("resetButton").addEventListener("click", loadSample);
+      byId("transmitButton").addEventListener("click", transmitPacket);
+      sourceSelect.addEventListener("change", clearResult);
+      destinationSelect.addEventListener("change", clearResult);
+
+      loadSample();
+    })();
+  </script>
+</body>
+</html>
